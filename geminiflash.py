@@ -7,6 +7,7 @@ import json
 import google.generativeai as genai
 import uvicorn
 from fastapi import FastAPI, File, UploadFile
+from fastapi.responses import RedirectResponse
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from PIL import Image
@@ -16,7 +17,7 @@ load_dotenv()
 api_key = os.getenv("GOOGLE_API_KEY")
 
 
-app = FastAPI(title="DOCUMENT PROCESSING API", description="API for extracting relevant entities from documents.")
+app = FastAPI(title="DOCUMENT PROCESSING API", description="API for extracting the information from documents.", redoc_url=None)
 
 json_example1 = '''{ {"NAME": "SRIRAM MAMUNDI",
                      "DOB": "11/04/1992", 
@@ -146,6 +147,22 @@ safe = [
     },
 ]
 
+
+def has_text(pdf_document):
+    # Check if the document contains any text
+    for page_num in range(len(pdf_document)):
+        page = pdf_document.load_page(page_num)
+        if page.get_text().strip():
+            return True
+    return False
+
+# Routes
+
+@app.get("/", include_in_schema=False)
+async def root():
+    return RedirectResponse(url="/docs")
+
+
 @app.post("/document_processing", response_class=JSONResponse)
 async def extract_entities(doc: UploadFile = File(...)):
     model = genai.GenerativeModel("gemini-1.5-flash-latest")
@@ -156,16 +173,6 @@ async def extract_entities(doc: UploadFile = File(...)):
                  
                 Another Example : Resume
                 Example Reply : {json_example2}'''
-
-
-    def has_text(pdf_document):
-        # Check if the document contains any text
-        for page_num in range(len(pdf_document)):
-            page = pdf_document.load_page(page_num)
-            if page.get_text().strip():
-                return True
-        return False
-
 
     if doc.content_type.startswith("image/"):
         # Read the image from the uploaded file
@@ -216,8 +223,7 @@ async def extract_entities(doc: UploadFile = File(...)):
 
     
 if __name__ == "__main__":
-    uvicorn.run("geminiflash:app", host="localhost", port=8000, reload=True)
-
+    uvicorn.run("api:app", host="localhost", port=8000, reload=True)
 
 
 
