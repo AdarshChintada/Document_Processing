@@ -17,7 +17,7 @@ load_dotenv()
 api_key = os.getenv("GOOGLE_API_KEY")
 
 
-app = FastAPI(title="DOCUMENT PROCESSING API", description="API for extracting the information from documents.", redoc_url=None)
+app = FastAPI(title="DOCUMENT PROCESSING API", description="API for extracting the information from documents.")
 
 json_example1 = '''{ {"NAME": "SRIRAM MAMUNDI",
                      "DOB": "11/04/1992", 
@@ -124,6 +124,9 @@ json_example2 = '''{
 "Document Type" : "Resume"
 }'''
 
+
+standard_keys = ['Name', 'DOB', 'Gender', 'Address', 'State', 'Country', 'PIN', 'Document ID', 'Date of Issue', 
+                 'Date of Expiry', 'Driving license CLASS', 'Driving Restrictions', 'Driving Endorsements']
 safe = [
     {
         "category": "HARM_CATEGORY_DANGEROUS",
@@ -147,9 +150,8 @@ safe = [
     },
 ]
 
-
+# Check if the document contains any text
 def has_text(pdf_document):
-    # Check if the document contains any text
     for page_num in range(len(pdf_document)):
         page = pdf_document.load_page(page_num)
         if page.get_text().strip():
@@ -158,6 +160,7 @@ def has_text(pdf_document):
 
 # Routes
 
+#Redirecting to docs 
 @app.get("/", include_in_schema=False)
 async def root():
     return RedirectResponse(url="/docs")
@@ -167,7 +170,14 @@ async def root():
 async def extract_entities(doc: UploadFile = File(...)):
     model = genai.GenerativeModel("gemini-1.5-flash-latest")
     
-    prompt = f'''You will be given a document, it might be any type. Your reply should have extracting all the information with the keys and values in the document in JSON format. Include the "type of the document" at the end of JSON as illustrated below.
+    # Prompt = f'''You will be given a document, which could be of any type. Your reply should have extracting all the information with the keys and values in the document in JSON format. Include the "type of the document" at the end of JSON as illustrated below. 
+    #              Example document : Identity document
+    #              Example reply : {json_example1}
+                 
+    #             Another Example : Resume
+    #             Example Reply : {json_example2}'''
+    
+    prompt = f'''You will be given a document, which could be of any type. Your task is to extract all the information and present it in JSON format. Ensure that specific keys in the JSON output follow a standardized format, while all other keys are included as they appear in the document. The standardized keys list is {standard_keys}. Specifically, regardless of how the standard keys are labeled in the document, map it to the original standard key there in the list. For example, if the document contains a key that represents a person's name, standardize it to "NAME". Similarly, map other keys like "ADDRESS", "DOCUMENT ID", "GENDER" and so on. All other keys should be included in the output as they appear in the document. Do not repeat standardized keys with other names in the document again in the output. Include the "type of the document" at the end of the JSON as illustrated below.
                  Example document : Identity document
                  Example reply : {json_example1}
                  
